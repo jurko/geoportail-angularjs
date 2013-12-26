@@ -1,0 +1,36 @@
+<!doctype html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" ng-app="geoportailApp">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <link rel="shortcut icon" type="image/x-icon" href="img/favicon.ico"/>
+    <title>Geoportail - IGN</title>
+    <!--<link rel="stylesheet" href="css/bootstrap.css">-->
+    <link rel="stylesheet" href="css/app.css">
+    <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.2.6/angular.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.2.6/angular-route.min.js"></script>
+    <!--<script src="lib/angular.js"></script>-->
+    <!--<script src="lib/angular-route.js"></script>-->
+    <script src="http://api.ign.fr/geoportail/api/js/latest/Geoportal.js"></script>
+    <script src="js/geoportail.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/controllers.js"></script>
+</head>
+<body ng-controller="mainController">
+<div>
+    <div id="header">
+        <div>
+            <a href="#/ign-full">Full Screen </a> ---
+            <a href="#/ign-fixed">Fixed</a> ---
+            {{foo}}
+        </div>
+    </div>
+    <div id="content" resize-full>
+        <div ng-view style="height: 100%"></div>
+    </div>
+    <div id="footer">
+        <div>{{bar}}</div>
+    </div>
+</div>
+</body>
+</html>
