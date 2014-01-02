@@ -14,62 +14,26 @@
  * the License.
  */
 
-/**
- * A Geoportail Map.
- *
- * TODO could be moved to client code actually.
- *
- * @param apiKey
- * @param $log
- * @returns {null}
- * @constructor
- */
-function GeoportailMap(apiKey, elementId, $log) {
-    $log.debug("Creating map for '" + elementId + "'");
-
-    var map = new Geoportal.Viewer.Default(
-        elementId,
-        OpenLayers.Util.extend({
-            mode:'normal',
-            territory: 'FXX',
-            //projection: 'IGNF:GEOPORTALFXX',
-            //displayProjection:'IGNF:LAMB93',
-            //displayProjection: ['IGNF:RGF93G', 'IGNF:LAMB93', 'IGNF:LAMBE'],
-            nameInstance: elementId},
-        // API keys configuration variable set by <Geoportal.GeoRMHandler.getConfig>
-        window.gGEOPORTALRIGHTSMANAGEMENT === undefined ? {'apiKey': apiKey} : gGEOPORTALRIGHTSMANAGEMENT)
-    );
-    if (!map) {
-        $log.error(OpenLayers.i18n('new.instance.failed'));
-        return null;
-    }
-
-    map.addGeoportalLayers(['GEOGRAPHICALGRIDSYSTEMS.MAPS', 'ORTHOIMAGERY.ORTHOPHOTOS'], {
-        'GEOGRAPHICALGRIDSYSTEMS.MAPS': {opacity: 1.0},
-        'ORTHOIMAGERY.ORTHOPHOTOS': {visibility: false}
-    });
-//    map.addGeoportalLayer('GEOGRAPHICALGRIDSYSTEMS.MAPS', {visibility:true, opacity:1});
-//    map.addGeoportalLayer('ORTHOIMAGERY.ORTHOPHOTOS', {opacity: 1, visibility: false});
-    map.setInformationPanelVisibility(false);
-    map.openLayersPanel(false);
-    map.openToolsPanel(false);
-
-//    map.getMap().addControl(new Geoportal.Control.LayerSwitcher());
-//    map.getMap().addControl(new Geoportal.Control.GraphicScale(), new OpenLayers.Pixel(80, 430));
-//    map.getMap().addControl(new Geoportal.Control.MousePosition({autoActivate:true,
-//        position: new OpenLayers.Pixel(150,150)}));
-
-    return map;
-}
-
 angular.module('geoportailMap', [])
-    .provider('geoportailMap', function geoportailMapProvider() {
+    .provider('geoportailMapLoader', function geoportailMapLoaderProvider() {
         var apiKey = null;
         this.setApiKey = function (value) {
             apiKey = value;
         };
 
-        var checkApiLoadedHelper = function(clss) {
+        var loaded = false;
+        var deferred = null;
+        this.loadApi = function ($q, $timeout) {
+            deferred = $q.defer();
+            if (loaded) {
+                deferred.resolve();
+            } else {
+                loadGeoportailApi($timeout);
+            }
+            return deferred.promise;
+        }
+
+        var checkClassesLoaded = function(clss) {
             var f;
             for (var i = 0, l = clss.length; i < l; i++) {
                 try {
@@ -78,67 +42,79 @@ angular.module('geoportailMap', [])
                     f = undefined;
                 }
                 if (typeof(f) === 'undefined') {
-                    /**
-                     * It may happen that the init function is executed before the API is loaded
-                     * Addition of a timer code that waits 300 ms before running the init function
-                     */
-//                __Geoportal$timer = window.setTimeout(retryClbk, 300);
                     return false;
                 }
             }
             return true;
         }
 
-        var checkApiLoaded = function() {
-            if (checkApiLoadedHelper(['OpenLayers', 'Geoportal', 'Geoportal.Viewer', 'Geoportal.Viewer.Default'])) {
-                // actually not sure why this is needed, but it is ;-)
+        var loadGeoportailApi = function($timeout) {
+            if (checkClassesLoaded(['OpenLayers', 'Geoportal', 'Geoportal.Viewer', 'Geoportal.Viewer.Default'])) {
+                // get the contracts first
                 Geoportal.GeoRMHandler.getConfig([apiKey], null, null, {
                     onContractsComplete: onLoadComplete
                 });
             } else {
                 wait = $timeout(function() {
-                    checkApiLoaded();
+                    loadGeoportailApi($timeout);
                 }, 500);
             }
         }
 
         /**
-         * Callback called from Geoportal.GeoRMHandler.getConfig, which is the end of the loading sequence
-         * and the map is loaded and instantiated successfully.
+         * Callback called from Geoportal.GeoRMHandler.getConfig, which is the end of the loading sequence and the API is loaded
          */
-        var deferredMaps = new Array();
         var onLoadComplete = function() {
-            for(var i = 0; i < deferredMaps.length; i++) {
-                deferredMaps[i].promise.resolve(deferredMaps[i].callback());
-            }
-            deferredMaps = new Array();
+            loaded = true;
+            deferred.resolve();
         }
 
-        this.$get = ['$q', '$timeout', '$log', function geoportailMapFactory($q, $timeout, $log) {
-            $log.debug("Using geportail key: " + apiKey);
-
-            mapPromise = {
-                createMap : function(elementId) {
-                    $log.debug("Deferring map creation for '" + elementId + "'");
-                    deferredMap = {
-                        promise : $q.defer(),
-                        callback : function() {
-                            return new GeoportailMap(apiKey, elementId, $log);
-                        }
-                    }
-                    deferredMaps.push(deferredMap);
-                    checkApiLoaded();
-                    return deferredMap.promise.promise;
+        this.$get = function() {
+            return {
+                getKey : function() {
+                    return apiKey;
                 }
             }
-
-            // avoid race if the API is loaded and onLoadComplete() is executed before the below promise is created
-            checkApiLoaded();
-
-            return mapPromise;
-        }];
+        }
     })
-    .directive('map', function($window, $log, geoportailMap) { // TODO, ignMap, geoportailMap conflicts with something (weird)
+    .service('geoportailMap', ['geoportailMapLoader', '$log', function(geoportailMapLoader, $log) {
+        this.createMap = function(elementId, properties) {
+            $log.debug("Creating map for '" + elementId + "'");
+            var apiKey = geoportailMapLoader.getKey();
+
+            var map = new Geoportal.Viewer.Default(
+                elementId,
+                OpenLayers.Util.extend({
+                        mode:'normal',
+                        territory: 'FXX',
+                        //projection: 'IGNF:GEOPORTALFXX',
+                        //displayProjection:'IGNF:LAMB93',
+                        //displayProjection: ['IGNF:RGF93G', 'IGNF:LAMB93', 'IGNF:LAMBE'],
+                        nameInstance: elementId},
+                    // API keys configuration variable set by <Geoportal.GeoRMHandler.getConfig>
+                    window.gGEOPORTALRIGHTSMANAGEMENT === undefined ? {'apiKey': apiKey} : gGEOPORTALRIGHTSMANAGEMENT)
+            );
+            if (!map) {
+                $log.error("Failed to create new map");
+                return null;
+            }
+
+            map.addGeoportalLayers(['GEOGRAPHICALGRIDSYSTEMS.MAPS', 'ORTHOIMAGERY.ORTHOPHOTOS'], {
+                'GEOGRAPHICALGRIDSYSTEMS.MAPS': {opacity: 1.0},
+                'ORTHOIMAGERY.ORTHOPHOTOS': {visibility: false}
+            });
+            //map.addGeoportalLayer('GEOGRAPHICALGRIDSYSTEMS.MAPS', {visibility:true, opacity:1});
+            map.setInformationPanelVisibility(false);
+            map.openLayersPanel(false);
+            map.openToolsPanel(false);
+            //map.getMap().addControl(new Geoportal.Control.LayerSwitcher());
+            //map.getMap().addControl(new Geoportal.Control.GraphicScale(), new OpenLayers.Pixel(80, 430));
+            //map.getMap().addControl(new Geoportal.Control.MousePosition({autoActivate:true, position: new OpenLayers.Pixel(150,150)}));
+
+            return map;
+        }
+    }])
+    .directive('geoportailMap', ['$window', 'geoportailMap', '$timeout', '$log', function($window, geoportailMap, $timeout, $log) {
         var setParentSize = function(element, map) {
             var parent = element.parent();
             height = parent.prop('offsetHeight');
@@ -154,20 +130,24 @@ angular.module('geoportailMap', [])
         return {
             restrict: 'E',
             scope: {
+                mapProperties: '='
             },
-//            controller : function($scope, $attrs, $log, geoportailMap) {
-//            },
             link: function(scope, element, attrs) {
-                geoportailMap.createMap(attrs.id).then(function (map) {
-                        scope.map = map;
-                        setParentSize(element, scope.map);
-                        map.getMap().setCenterAtLonLat(5.74, 45.17, 9);
-                    }
-                );
+                if (scope.mapProperties === undefined) {
+                    $log.error("Forgot to specify the mapping attribute 'mapProperties'");
+                    return;
+                }
+                scope.map = geoportailMap.createMap(attrs.id);
+                scope.map.getMap().setCenterAtLonLat(scope.mapProperties.lon, scope.mapProperties.lat, scope.mapProperties.zoom);
+
+                $timeout(function() {
+                    setParentSize(element, scope.map)
+                }, 0);
 
                 scope.$on('resizeEvent', function(event) {
                     setParentSize(element, scope.map);
                 });
+
             }
         };
-    });
+    }]);

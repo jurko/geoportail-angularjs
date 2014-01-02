@@ -8,10 +8,8 @@ controllers.controller('mainController', ['$scope', '$http',
 
 controllers.controller('geoportailMapController', ['$scope', '$log', 'geoportailMap',
     function geoportailMapController($scope, $log, geoportailMap) {
-//        geoportailMap.createMap('map').then(function (map) {
-//            //map.setSize(100, 100);
-//            map.getMap().setCenterAtLonLat(5.74, 45.17, 9);
-//        });
+        $scope.mapGnb = {name: 'Grenoble', lon: 5.74, lat: 45.17, zoom: 9};
+        $scope.mapCham = {name: 'Chamonix', lon: 6.87, lat: 45.92, zoom: 9};
     }]);
 
 //TODO, rework full html height
