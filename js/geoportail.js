@@ -114,23 +114,16 @@ angular.module('geoportailMap', [])
             return map;
         }
     }])
-    .directive('geoportailMap', ['$window', 'geoportailMap', '$timeout', '$log', function($window, geoportailMap, $timeout, $log) {
-        var setParentSize = function(element, map) {
-            var parent = element.parent();
-            height = parent.prop('offsetHeight');
-            width = parent.prop('offsetWidth');
-            element.css('height', height);
-            element.css('width', width);
-
-            if (map != null) {
-                map.setSize(width + 'px', height + 'px');
-            }
-        }
-
+    .directive('geoportailMap', ['geoportailMap', '$log', function(geoportailMap, $log) {
         return {
-            restrict: 'E',
+            restrict: 'A',
             scope: {
                 mapProperties: '='
+            },
+            controller: function($scope) {
+                this.getMap = function() {
+                    return $scope.map;
+                }
             },
             link: function(scope, element, attrs) {
                 if (scope.mapProperties === undefined) {
@@ -139,15 +132,45 @@ angular.module('geoportailMap', [])
                 }
                 scope.map = geoportailMap.createMap(attrs.id);
                 scope.map.getMap().setCenterAtLonLat(scope.mapProperties.lon, scope.mapProperties.lat, scope.mapProperties.zoom);
-
-                $timeout(function() {
-                    setParentSize(element, scope.map)
-                }, 0);
-
-                scope.$on('resizeEvent', function(event) {
-                    setParentSize(element, scope.map);
-                });
-
             }
         };
-    }]);
+    }])
+    .directive('fixMapSize', ['$window', '$timeout', function($window, $timeout) {
+        // it looks like geoportail resizes automatically the map to the parent's size if css height is '100%'
+        // however, it doesn't consider padding/margin of the parent which is inconvenient in some cases (see full map)
+
+        var fixMapSize = function(element, map, adjustHeight, adjustWidth) {
+            // TODO, get real size of the parent element (padding excluded)
+            var parent = element.parent();
+            height = parent.prop('offsetHeight') - adjustHeight;
+            width = parent.prop('offsetWidth') - adjustWidth;
+            if (map != null) {
+                map.setSize(width + 'px', height + 'px');
+            }
+        }
+
+        return {
+            restrict: 'A',
+            require: 'geoportailMap',
+            scope: false,
+            link: function(scope, element, attrs, mapCtrl) {
+                if (element.css('height') == '100%') {
+                    var map = mapCtrl.getMap();
+                    var adjustHeight = attrs.adjustHeight === undefined ? 0 : attrs.adjustHeight;
+                    var adjustWidth = attrs.adjustWidth === undefined ? 0 : attrs.adjustWidth;
+                    $timeout(function() {
+                        fixMapSize(element, map, adjustHeight, adjustWidth);
+                    }, 0);
+
+                    var w = angular.element($window);
+                    w.bind('resize', function() {
+                        fixMapSize(element, map, adjustHeight, adjustWidth);
+                    });
+                    w.bind('DOMContentLoaded', function() {
+                        fixMapSize(element, map, adjustHeight, adjustWidth);
+                    })
+                }
+            }
+        }
+    }])
+;

@@ -7,8 +7,8 @@
     <title>Geoportail - IGN</title>
     <!--<link rel="stylesheet" href="css/bootstrap.css">-->
     <link rel="stylesheet" href="css/app.css">
-    <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.2.6/angular.min.js"></script>
-    <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.2.6/angular-route.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.2.6/angular.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.2.6/angular-route.js"></script>
     <!--<script src="lib/angular.js"></script>-->
     <!--<script src="lib/angular-route.js"></script>-->
     <script src="http://api.ign.fr/geoportail/api/js/latest/Geoportal.js"></script>
@@ -17,21 +17,17 @@
     <script src="js/controllers.js"></script>
 </head>
 <body ng-controller="mainController">
-<div>
-    <div id="header">
-        <div>
-            <a href="#/ign-full">Full Screen </a> ---
-            <a href="#/ign-fixed">Fixed</a> ---
-            <a href="#/ign-multiple">Multiple</a> ---
-            {{foo}}
-        </div>
-    </div>
-    <div id="content" resize-full>
-        <div ng-view style="height: 100%"></div>
-    </div>
-    <div id="footer">
-        <div>{{bar}}</div>
+<div id="header">
+    <div>
+        <a href="#/ign-full">Full Screen </a> ---
+        <a href="#/ign-fixed">Fixed</a> ---
+        <a href="#/ign-multiple">Multiple</a> ---
+        {{foo}}
     </div>
 </div>
+<div id="content">
+    <div style="height: 100%" ng-view></div>
+</div>
+<div id="footer">{{bar}}</div>
 </body>
 </html>
